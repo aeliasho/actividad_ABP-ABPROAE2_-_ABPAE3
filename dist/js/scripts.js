@@ -1,9 +1,9 @@
-// Variables globales
+
 let catalogo;
 let carrito;
 
 document.addEventListener("DOMContentLoaded", async function () {
-  // === VERIFICAR SESIÓN Y MOSTRAR USUARIO ===
+  
   function verificarYMostrarUsuario() {
     const sesion = localStorage.getItem('sesionActiva') || sessionStorage.getItem('sesionActiva');
     const logoutBtn = document.getElementById('logoutBtn');
@@ -30,7 +30,7 @@ document.addEventListener("DOMContentLoaded", async function () {
     }
   }
   
-  // === FUNCIÓN PARA CERRAR SESIÓN ===
+  
   function cerrarSesion() {
     localStorage.removeItem('sesionActiva');
     sessionStorage.removeItem('sesionActiva');
@@ -39,11 +39,11 @@ document.addEventListener("DOMContentLoaded", async function () {
   
   verificarYMostrarUsuario();
   
-  // === EVENT LISTENER PARA CERRAR SESIÓN ===
+  
   const logoutBtn = document.getElementById('logoutBtn');
   if (logoutBtn) logoutBtn.addEventListener('click', cerrarSesion);
   
-  // === SUSCRIPCIÓN CON ALERTA ===
+ 
   const subscriptionForm = document.getElementById("subscriptionForm");
   const alertContainer = document.getElementById("alertContainer");
   if (subscriptionForm) {
@@ -61,7 +61,7 @@ document.addEventListener("DOMContentLoaded", async function () {
     });
   }
 
-  // === CONTACTO CON ALERTA ===
+  
   const contactForm = document.getElementById("contactForm");
   const contactAlertContainer = document.getElementById("contactAlertContainer");
   if (contactForm && contactAlertContainer) {
@@ -79,7 +79,7 @@ document.addEventListener("DOMContentLoaded", async function () {
     });
   }
 
-  // === CARRITO ===
+ 
   const abrirCarritoBtn = document.getElementById("abrirCarrito");
   const cerrarCarritoBtn = document.getElementById("cerrarCarrito");
   const carritoSidebar = document.getElementById("carritoSidebar");
@@ -90,14 +90,13 @@ document.addEventListener("DOMContentLoaded", async function () {
   const overlayCarrito = document.getElementById("overlayCarrito");
   const carritoNotificacion = document.getElementById("carritoNotificacion");
 
-  // Cargar datos e inicializar clases
+  
   try {
-    const response = await fetch("../src/data/productos.json");
-    const datos = await response.json();
+    const datos = await AdminProductos.obtenerProductos();
     catalogo = new Catalogo(datos);
     carrito = new Carrito();
     
-    // Inicializar UI
+   
     initFiltros();
     renderizarProductos();
     actualizarCarritoUI();
@@ -109,7 +108,7 @@ document.addEventListener("DOMContentLoaded", async function () {
       </div>`;
   }
 
-  // === FUNCIONES DEL CARRITO ===
+  
   function actualizarCarritoUI() {
     carritoItemsContainer.innerHTML = "";
     const vaciarBtn = document.getElementById('vaciarCarritoBtn');
@@ -144,7 +143,7 @@ document.addEventListener("DOMContentLoaded", async function () {
       carritoItemsContainer.appendChild(totalDiv);
     }
 
-    // Actualizar notificación
+   
     const totalItems = carrito.items.reduce((total, item) => total + item.cantidad, 0);
     carritoNotificacion.textContent = totalItems;
     carritoNotificacion.style.display = totalItems > 0 ? "flex" : "none";
@@ -163,7 +162,7 @@ document.addEventListener("DOMContentLoaded", async function () {
     formularioPedidoContainer.style.display = "none";
   }
 
-  // === EVENTOS DEL CARRITO ===
+  
   abrirCarritoBtn?.addEventListener("click", () => {
     carritoSidebar.classList.add("abierto");
     overlayCarrito.classList.add("activo");
@@ -191,27 +190,40 @@ document.addEventListener("DOMContentLoaded", async function () {
 
   document.getElementById('vaciarCarritoBtn')?.addEventListener('click', vaciarCarrito);
 
-  formularioPedido?.addEventListener("submit", (e) => {
+  formularioPedido?.addEventListener("submit", async (e) => {
     e.preventDefault();
     
-    // Actualizar stocks
-    carrito.items.forEach(item => {
-      const producto = catalogo.productos.find(p => p.id === item.id);
-      if (producto) producto.reducirStock(item.cantidad);
-    });
-    
-    alert("¡Pedido realizado!, te daremos seguimiento a través de tu correo.");
-    formularioPedido.reset();
-    formularioPedidoContainer.style.display = "none";
-    carrito.vaciar();
-    actualizarCarritoUI();
-    renderizarProductos();
-    cerrarCarrito();
+    try {
+     
+      for (const item of carrito.items) {
+        const producto = catalogo.productos.find(p => p.id === item.id);
+        if (producto) {
+          await AdminProductos.actualizarStock(producto.id, item.cantidad);
+          producto.reducirStock(item.cantidad);
+          
+         
+          if (producto.stock < 3) {
+            await AdminProductos.notificarResponsable(producto, item.cantidad);
+          }
+        }
+      }
+      
+      alert("¡Pedido realizado!, te daremos seguimiento a través de tu correo.");
+      formularioPedido.reset();
+      formularioPedidoContainer.style.display = "none";
+      carrito.vaciar();
+      actualizarCarritoUI();
+      renderizarProductos();
+      cerrarCarrito();
+    } catch (error) {
+      console.error("Error al procesar el pedido:", error);
+      alert("Ocurrió un error al procesar tu pedido. Por favor, intenta nuevamente.");
+    }
   });
 
-  // === FILTRADO Y PRODUCTOS ===
+  
   function initFiltros() {
-    // Llenar categorías
+    
     const select = document.getElementById('filtroCategoria');
     catalogo.getCategorias().forEach(categoria => {
       const option = document.createElement('option');
@@ -220,7 +232,7 @@ document.addEventListener("DOMContentLoaded", async function () {
       select.appendChild(option);
     });
 
-    // Configurar event listeners
+   
     document.getElementById('filtroProductos').addEventListener('input', aplicarFiltros);
     document.getElementById('filtroCategoria').addEventListener('change', aplicarFiltros);
     document.getElementById('rangoPrecio').addEventListener('input', function() {
@@ -291,7 +303,7 @@ document.addEventListener("DOMContentLoaded", async function () {
     });
   }
 
-  // === MODO OSCURO ===
+  
   const darkModeToggle = document.getElementById("darkModeToggle");
   const prefersDarkScheme = window.matchMedia("(prefers-color-scheme: dark)");
 
@@ -304,7 +316,7 @@ document.addEventListener("DOMContentLoaded", async function () {
     localStorage.setItem("dark-mode", document.body.classList.contains("dark-mode") ? "enabled" : "disabled");
   });
 
-  // === ANIMACIONES ===
+  
   requestAnimationFrame(() => {
     document.body.classList.add("fade-in");
     setTimeout(() => document.body.classList.add("animation-complete"), 500);
@@ -314,8 +326,8 @@ document.addEventListener("DOMContentLoaded", async function () {
   if (main) main.classList.add("fade-in");
 });
 
-// === AGREGAR PRODUCTO AL CARRITO ===
-document.addEventListener("click", (e) => {
+
+document.addEventListener("click", async (e) => {
   if (e.target.classList.contains('comprar-btn') && !e.target.disabled) {
     e.preventDefault();
     const id = e.target.dataset.id;
@@ -330,32 +342,49 @@ document.addEventListener("click", (e) => {
       return;
     }
     
-    if (!producto.estaDisponible(cantidad)) {
+    
+    const disponible = await producto.verificarDisponibilidad(cantidad);
+    
+    if (!disponible) {
       alert(`No hay suficiente stock. Solo quedan ${producto.stock} unidades disponibles.`);
       return;
     }
 
-    carrito.agregarItem(producto, cantidad);
-    producto.reducirStock(cantidad);
+    try {
+     
+      await AdminProductos.actualizarStock(producto.id, cantidad);
+      
+      
+      carrito.agregarItem(producto, cantidad);
+      producto.reducirStock(cantidad);
     
-    // Feedback visual
-    const btn = e.target;
-    btn.textContent = "✓ Agregado";
-    btn.disabled = true;
-    setTimeout(() => {
-      btn.textContent = producto.stock > 0 ? 'Comprar' : 'Agotado';
-      if (producto.stock <= 0) btn.disabled = true;
-    }, 1500);
+      if (producto.stock < 3) {
+        await AdminProductos.notificarResponsable(producto, cantidad);
+      }
+      
+     
+      const btn = e.target;
+      btn.textContent = "✓ Agregado";
+      btn.disabled = true;
+      setTimeout(() => {
+        btn.textContent = producto.stock > 0 ? 'Comprar' : 'Agotado';
+        if (producto.stock <= 0) btn.disabled = true;
+      }, 1500);
 
-    // Actualizar UI
-    if (document.getElementById("carritoSidebar").classList.contains("abierto")) {
-      actualizarCarritoUI();
+      
+      if (document.getElementById("carritoSidebar").classList.contains("abierto")) {
+        actualizarCarritoUI();
+      }
+      
+     
+      const carritoNotificacion = document.getElementById("carritoNotificacion");
+      const totalItems = carrito.items.reduce((total, item) => total + item.cantidad, 0);
+      carritoNotificacion.textContent = totalItems;
+      carritoNotificacion.style.display = totalItems > 0 ? "flex" : "none";
+      
+    } catch (error) {
+      console.error("Error en el proceso de compra:", error);
+      alert("Ocurrió un error al procesar tu compra. Por favor, intenta nuevamente.");
     }
-    
-    // Actualizar notificación
-    const carritoNotificacion = document.getElementById("carritoNotificacion");
-    const totalItems = carrito.items.reduce((total, item) => total + item.cantidad, 0);
-    carritoNotificacion.textContent = totalItems;
-    carritoNotificacion.style.display = totalItems > 0 ? "flex" : "none";
   }
 });
